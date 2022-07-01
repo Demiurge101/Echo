@@ -1,1 +1,1 @@
-# Echo Эхо сервер для telnet через Win Socket 
+# Echo Different various echo servers
