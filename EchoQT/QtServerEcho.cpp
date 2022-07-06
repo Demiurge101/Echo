@@ -1,6 +1,7 @@
-﻿#include <QCoreApplication>
+#include <QCoreApplication>
 #include <QTcpServer>
 #include <QTcpSocket>
+#include <QVector>
 
 class ServerBase : public QTcpServer
 {
@@ -17,6 +18,8 @@ public slots:
 private:
     QTcpServer* mTcpServer = new QTcpServer(this);
     QTcpSocket* mTcpSocket;
+    QVector <QTcpSocket*> Clients;
+    int Counter = 0;
 };
 
 ServerBase::ServerBase(QObject *parent) : QTcpServer(parent){
@@ -39,28 +42,33 @@ void ServerBase::run(){
 }
 
 void ServerBase::slotNewConnection(){
+
+
     mTcpSocket = mTcpServer->nextPendingConnection();
 
     mTcpSocket->write("Welcome to Echo!\r\n");
 
-    connect(mTcpSocket, &QTcpSocket::readyRead, this, &ServerBase::slotServerRead, Qt::QueuedConnection);
-    connect(mTcpSocket, &QTcpSocket::disconnected, this, &ServerBase::slotClientDisconnected, Qt::QueuedConnection);
+    Clients.push_back(mTcpSocket);
+
+    connect(Clients.at(Counter), &QTcpSocket::readyRead, this, &ServerBase::slotServerRead, Qt::QueuedConnection);
+    connect(Clients.at(Counter), &QTcpSocket::disconnected, this, &ServerBase::slotClientDisconnected, Qt::QueuedConnection);
+    //Counter++;
 
 }
 
 void ServerBase::slotServerRead(){
 
-    while(mTcpSocket->bytesAvailable()>0)
+    while(Clients[Counter]->bytesAvailable()>0)
     {
-    QByteArray array = mTcpSocket->readAll();
+    QByteArray array = Clients[Counter]->readAll();
 
-    mTcpSocket->write(array);
+    Clients[Counter]->write(array);
     }
 }
 
 void ServerBase::slotClientDisconnected(){
 
-    mTcpSocket->close();
+    Clients[Counter]->close();
 }
 
 int main(int argc, char *argv[])
@@ -70,6 +78,3 @@ int main(int argc, char *argv[])
     echo.run();
     return a.exec();
 }
-
-
-
