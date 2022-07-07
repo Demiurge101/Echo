@@ -8,6 +8,7 @@ class ServerBase : public QTcpServer
 public:
     explicit ServerBase(QObject *parent = 0);
     ~ServerBase();
+    void ShiftVector();
     void run();
 
 public slots:
@@ -19,12 +20,11 @@ private:
     QTcpServer* mTcpServer = new QTcpServer(this);
     QTcpSocket* mTcpSocket;
     QVector <QTcpSocket*> Clients;
-    int Counter = 0;
 };
 
 ServerBase::ServerBase(QObject *parent) : QTcpServer(parent){
 
-    if(!mTcpServer->listen(QHostAddress::LocalHost, 23)){
+    if(!mTcpServer->listen(QHostAddress :: LocalHost, 23)){
         qDebug() << "server is not started";
     } else {
         qDebug() << "server is started";
@@ -33,8 +33,26 @@ ServerBase::ServerBase(QObject *parent) : QTcpServer(parent){
 
 ServerBase::~ServerBase(){
 
-    delete mTcpSocket;
     delete mTcpServer;
+}
+
+void ServerBase::ShiftVector()
+{
+    bool flagShift = true;
+        while(flagShift){
+            for(int i = 1; i < Clients.size(); i++){
+               if(Clients[i - 1] == 0){
+                   Clients[i - 1] = Clients[i];
+                   for(int j = i + 1; j < Clients.size(); j++){
+                       Clients[j - 1] = Clients[j];
+                   }
+                   Clients.erase(Clients.begin() + i);
+                   flagShift = true;
+                   continue;
+               }
+            }
+            flagShift = false;
+        }
 }
 
 void ServerBase::run(){
@@ -48,27 +66,34 @@ void ServerBase::slotNewConnection(){
 
     mTcpSocket->write("Welcome to Echo!\r\n");
 
+    connect(mTcpSocket, &QTcpSocket::readyRead, this, &ServerBase::slotServerRead, Qt::QueuedConnection);
+    connect(mTcpSocket, &QTcpSocket::disconnected, this, &ServerBase::slotClientDisconnected, Qt::QueuedConnection);
+
     Clients.push_back(mTcpSocket);
-
-    connect(Clients.at(Counter), &QTcpSocket::readyRead, this, &ServerBase::slotServerRead, Qt::QueuedConnection);
-    connect(Clients.at(Counter), &QTcpSocket::disconnected, this, &ServerBase::slotClientDisconnected, Qt::QueuedConnection);
-    //Counter++;
-
 }
 
 void ServerBase::slotServerRead(){
+    mTcpSocket = (QTcpSocket*)sender();
 
-    while(Clients[Counter]->bytesAvailable()>0)
+    for(int i = 0; i < Clients.size(); i++)
     {
-    QByteArray array = Clients[Counter]->readAll();
+        if(Clients.at(i) == mTcpSocket){
+          QByteArray array = mTcpSocket->readAll();
+           mTcpSocket->write(array);
+        }
 
-    Clients[Counter]->write(array);
     }
+
 }
 
 void ServerBase::slotClientDisconnected(){
-
-    Clients[Counter]->close();
+    mTcpSocket->close();
+    for(int i = 0; i < Clients.size(); i++){
+        if(Clients.at(i) == mTcpSocket){
+            Clients[i] = 0;
+            ShiftVector();
+        }
+    }
 }
 
 int main(int argc, char *argv[])
@@ -78,3 +103,6 @@ int main(int argc, char *argv[])
     echo.run();
     return a.exec();
 }
+
+
+
