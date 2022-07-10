@@ -8,7 +8,6 @@ class ServerBase : public QTcpServer
 public:
     explicit ServerBase(QObject *parent = 0);
     ~ServerBase();
-    void ShiftVector();
     void run();
 
 public slots:
@@ -36,25 +35,6 @@ ServerBase::~ServerBase(){
     delete mTcpServer;
 }
 
-void ServerBase::ShiftVector()
-{
-    bool flagShift = true;
-        while(flagShift){
-            for(int i = 1; i < Clients.size(); i++){
-               if(Clients[i - 1] == 0){
-                   Clients[i - 1] = Clients[i];
-                   for(int j = i + 1; j < Clients.size(); j++){
-                       Clients[j - 1] = Clients[j];
-                   }
-                   Clients.erase(Clients.begin() + i);
-                   flagShift = true;
-                   continue;
-               }
-            }
-            flagShift = false;
-        }
-}
-
 void ServerBase::run(){
     connect(mTcpServer, &QTcpServer::newConnection, this, &ServerBase::slotNewConnection, Qt::DirectConnection);
 }
@@ -75,23 +55,17 @@ void ServerBase::slotNewConnection(){
 void ServerBase::slotServerRead(){
     mTcpSocket = (QTcpSocket*)sender();
 
-    for(int i = 0; i < Clients.size(); i++)
-    {
-        if(Clients.at(i) == mTcpSocket){
-          QByteArray array = mTcpSocket->readAll();
-           mTcpSocket->write(array);
-        }
-
-    }
-
+    QByteArray array = mTcpSocket->readAll();
+    mTcpSocket->write(array);
 }
 
 void ServerBase::slotClientDisconnected(){
+    mTcpSocket = (QTcpSocket*)sender();
     mTcpSocket->close();
     for(int i = 0; i < Clients.size(); i++){
         if(Clients.at(i) == mTcpSocket){
             Clients[i] = 0;
-            ShiftVector();
+            Clients.remove(i);
         }
     }
 }
@@ -103,6 +77,5 @@ int main(int argc, char *argv[])
     echo.run();
     return a.exec();
 }
-
 
 
